@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfect Store - تسجيل الدخول</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Roboto',sans-serif;}
+body{height:100vh;display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#0b0f1a,#12182b,#0f1826);color:white;}
+.container{background:#1a2233;border-radius:15px;padding:40px;width:350px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.7);position:relative;overflow:hidden;}
+.container::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg, rgba(78,163,255,0.2), rgba(46,123,255,0.2));animation:rotate 10s linear infinite;z-index:0;}
+@keyframes rotate{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+.container>*{position:relative;z-index:1;}
+h2{margin-bottom:25px;color:#4da3ff;font-size:24px;}
+input{width:100%;padding:12px;margin:12px 0;border:none;border-radius:8px;background:#12182b;color:white;font-size:16px;transition:0.3s;}
+input:focus{outline:none;box-shadow:0 0 10px #2e7bff;}
+button{width:100%;padding:12px;margin-top:15px;background:#2e7bff;border:none;border-radius:8px;color:white;font-weight:bold;font-size:16px;cursor:pointer;transition:0.3s;}
+button:hover{background:#4da3ff;transform:translateY(-2px);}
+.links{margin-top:15px;display:flex;justify-content:space-between;font-size:14px;}
+.links span{color:#7aa7ff;cursor:pointer;transition:0.2s;}
+.links span:hover{color:#2e7bff;text-decoration:underline;}
+#errorBox{margin-top:15px;padding:10px;background:#ff2e2e;color:white;border-radius:8px;display:none;font-size:14px;}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h2 id="title">تسجيل الدخول</h2>
+
+  <input id="username" placeholder="اسم المستخدم">
+  <input id="email" placeholder="البريد الإلكتروني" style="display:none">
+  <input id="password" type="password" placeholder="كلمة المرور" style="display:block">
+
+  <button onclick="mainAction()">دخول</button>
+
+  <div class="links">
+    <span onclick="switchMode()">إنشاء حساب</span>
+    <span onclick="forgotPassword()">نسيت كلمة المرور؟</span>
+  </div>
+
+  <div id="errorBox"></div>
+</div>
+
+<script>
+let mode = "login"; // login, register, forgot
+
+const title = document.getElementById("title");
+const username = document.getElementById("username");
+const email = document.getElementById("email");
+const password = document.getElementById("password");
+const errorBox = document.getElementById("errorBox");
+const button = document.querySelector("button");
+
+// التبديل بين تسجيل دخول وإنشاء حساب
+function switchMode(){
+  if(mode === "forgot") return; // لا نغير إذا في نسيت كلمة السر
+  mode = mode === "login" ? "register" : "login";
+  title.innerText = mode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد";
+  email.style.display = mode === "register" ? "block" : "none";
+  password.style.display = "block";
+  button.innerText = mode === "login" ? "دخول" : "تسجيل";
+  errorBox.style.display = "none";
+}
+
+// عرض رسالة خطأ
+function showError(msg){
+  errorBox.innerText = msg;
+  errorBox.style.display = "block";
+  setTimeout(()=>errorBox.style.display="none",4000);
+}
+
+// الدالة الرئيسية
+function mainAction(){
+  if(mode === "login") login();
+  else if(mode === "register") register();
+  else if(mode === "forgot") resetPassword();
+}
+
+//////////////////////////////////////////////////
+// ✅ إنشاء حساب
+//////////////////////////////////////////////////
+function register(){
+  if(!username.value || !password.value || !email.value){
+    showError("املأ جميع الخانات المطلوبة");
+    return;
+  }
+  const uid = "uid_"+Date.now();
+  const userData = {
+    username: username.value,
+    email: email.value,
+    password: password.value,
+    balance:100,
+    cardNumber: generateCard(),
+    cvv: Math.floor(100+Math.random()*900),
+    pin:"0000",
+    gamesOwned:{}
+  };
+  db.ref("usersperfect/"+uid).set(userData)
+  .then(()=>{
+    localStorage.setItem("uid", uid);
+    window.location.href="profile.html";
+  })
+  .catch(err=>{
+    console.error(err);
+    showError("حدث خطأ أثناء التسجيل");
+  });
+}
+
+//////////////////////////////////////////////////
+// ✅ تسجيل دخول
+//////////////////////////////////////////////////
+function login(){
+  if(!username.value || !password.value){
+    showError("املأ جميع الخانات المطلوبة");
+    return;
+  }
+  db.ref("usersperfect").once("value").then(snapshot=>{
+    let found = false;
+    snapshot.forEach(user=>{
+      const data = user.val();
+      if(data.username===username.value && data.password===password.value){
+        found = true;
+        localStorage.setItem("uid", user.key);
+        window.location.href="profile.html";
+      }
+    });
+    if(!found) showError("اسم المستخدم أو كلمة المرور غير صحيحة");
+  });
+}
+
+//////////////////////////////////////////////////
+// ✅ نسيت كلمة السر
+//////////////////////////////////////////////////
+function forgotPassword(){
+  mode = "forgot";
+  title.innerText = "استعادة كلمة المرور";
+  email.style.display = "block";
+  password.placeholder = "كلمة المرور الجديدة";
+  password.value = "";
+  button.innerText = "تحديث كلمة المرور";
+  showError("املأ اسم المستخدم والبريد وكلمة المرور الجديدة");
+}
+
+function resetPassword(){
+  if(!username.value || !email.value || !password.value){
+    showError("املأ جميع الخانات المطلوبة");
+    return;
+  }
+  db.ref("usersperfect").once("value").then(snapshot=>{
+    let found = false;
+    snapshot.forEach(user=>{
+      const data = user.val();
+      if(data.username===username.value && data.email===email.value){
+        found = true;
+        db.ref("usersperfect/"+user.key+"/password").set(password.value)
+        .then(()=>{ 
+          showError("تم تحديث كلمة المرور بنجاح"); 
+          mode="login"; 
+          title.innerText="تسجيل الدخول"; 
+          email.style.display="none"; 
+          password.placeholder="كلمة المرور"; 
+          password.value=""; 
+          button.innerText="دخول";
+        })
+        .catch(err=>{ showError("حدث خطأ أثناء تحديث كلمة المرور"); console.error(err); });
+      }
+    });
+    if(!found) showError("اسم المستخدم أو البريد غير صحيح");
+  });
+}
+
+//////////////////////////////////////////////////
+// بطاقة وهمية
+//////////////////////////////////////////////////
+function generateCard(){
+  return "4000-"+rand4()+"-"+rand4()+"-"+rand4();
+}
+function rand4(){ return Math.floor(1000 + Math.random()*9000);}
+</script>
+
+</body>
+</html>

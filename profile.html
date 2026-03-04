@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حسابي - Perfect Store</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #0b0f1a, #12182b);
+  color:white;
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 40px;
+  background:#1a2233;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:0 3px 10px rgba(0,0,0,0.5);
+}
+
+header h1{
+  font-size:26px;
+  color:#4da3ff;
+}
+
+nav a{
+  margin:0 12px;
+  font-weight:bold;
+  color:white;
+  transition:0.3s;
+}
+
+nav a:hover{
+  color:#2e7bff;
+}
+
+.container{
+  max-width:500px;
+  margin:40px auto;
+  background:#151c2f;
+  border-radius:12px;
+  padding:30px;
+  text-align:center;
+  box-shadow:0 10px 25px rgba(0,0,0,0.7);
+}
+
+.profile-pic{
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  background:#2e7bff;
+  display:inline-block;
+  margin-bottom:15px;
+}
+
+h2{
+  margin:10px 0;
+  color:#ffcc00;
+}
+
+p{
+  margin:5px 0;
+  color:#7aa7ff;
+  font-size:16px;
+}
+
+.stats{
+  display:flex;
+  justify-content:space-around;
+  margin:20px 0;
+}
+
+.stats div{
+  background:#1b2340;
+  padding:15px 20px;
+  border-radius:8px;
+}
+
+button{
+  padding:12px 25px;
+  background:#2e7bff;
+  border:none;
+  border-radius:8px;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button:hover{
+  background:#4da3ff;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Perfect Store</h1>
+  <nav>
+    <a href="index.html">الرئيسية</a>
+    <a href="library.html">مكتبتي</a>
+    <a href="profile.html">حسابي</a>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="profile-pic"></div>
+  <h2 id="username">...</h2>
+  <p id="email">...</p>
+
+  <div class="stats">
+    <div>
+      <h3 id="gamesCount">0</h3>
+      <p>الألعاب المشتراة</p>
+    </div>
+  </div>
+
+  <button id="logoutBtn">تسجيل خروج</button>
+</div>
+
+<script>
+const uid = localStorage.getItem("uid");
+if(!uid){
+  // إذا لم يتم تسجيل الدخول نعيد التوجيه لصفحة auth
+  location.href = "auth.html";
+}
+
+// جلب معلومات المستخدم
+db.ref("usersperfect/"+uid).once("value").then(snap=>{
+  const data = snap.val();
+  if(data){
+    document.getElementById("username").innerText = data.username || "اسم المستخدم";
+    document.getElementById("email").innerText = data.email || "example@mail.com";
+    const games = data.gamesOwned ? Object.keys(data.gamesOwned).length : 0;
+    document.getElementById("gamesCount").innerText = games;
+  }
+});
+
+// تسجيل خروج
+document.getElementById("logoutBtn").addEventListener("click", ()=>{
+  localStorage.removeItem("uid");
+  location.href = "auth.html";
+});
+</script>
+
+</body>
+</html>

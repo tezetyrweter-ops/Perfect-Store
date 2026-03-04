@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfect Store - لعبة</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+body{
+  background: linear-gradient(to right,#0b0f1a,#12182b);
+  color:white;
+  font-family:Arial,sans-serif;
+  padding:20px;
+}
+
+h2{
+  color:#4da3ff;
+}
+
+#mainImg{
+  width:300px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+
+.gallery img{
+  width:100px;
+  margin:5px;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.gallery img:hover{
+  transform: scale(1.1);
+}
+
+button{
+  padding:10px 20px;
+  background:#2e7bff;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  margin-top:10px;
+  transition:0.2s;
+}
+
+button:hover{
+  background:#4da3ff;
+}
+</style>
+</head>
+
+<body>
+
+<h2 id="name"></h2>
+<img id="mainImg" src="" alt=" ">
+<div class="gallery" id="gallery"></div>
+
+<p id="desc"></p>
+<p id="price"></p>
+<p id="size"></p>
+
+<button onclick="buy()">شراء الآن</button>
+
+<script>
+/* =======================
+   العناصر
+======================= */
+const id = new URLSearchParams(location.search).get("id");
+const nameEl = document.getElementById("name");
+const mainImg = document.getElementById("mainImg");
+const gallery = document.getElementById("gallery");
+const descEl = document.getElementById("desc");
+const priceEl = document.getElementById("price");
+const sizeEl = document.getElementById("size");
+
+/* =======================
+   جلب بيانات اللعبة
+======================= */
+db.ref("games/"+id).once("value").then(snap=>{
+  const g = snap.val();
+  if(!g){
+    alert("اللعبة غير موجودة");
+    location="index.html";
+    return;
+  }
+
+  // الاسم، الوصف، السعر، الحجم
+  nameEl.innerText = g.name;
+  descEl.innerText = g.description;
+  priceEl.innerText = "Price " + g.price + "$";
+  sizeEl.innerText = "Size " + g.size;
+
+  // الغلاف الرئيسي
+  mainImg.src = g.coverImage || g.image || "";
+
+  // معرض الصور الداخلية
+  gallery.innerHTML = "";
+  if(g.images){
+    Object.values(g.images).forEach(src=>{
+      if(src){
+        const img = document.createElement("img");
+        img.src = src;
+        img.onclick = ()=> mainImg.src = src;
+        gallery.appendChild(img);
+      }
+    });
+  }
+});
+
+/* =======================
+   شراء اللعبة
+======================= */
+function buy(){
+  const uid = localStorage.getItem("uid");
+  if(!uid){
+    alert("يجب تسجيل الدخول أولاً");
+    location="auth.html";
+    return;
+  }
+
+  // حفظ اللعبة للشراء
+  localStorage.setItem("buyGame", id);
+  location="payment.html";
+}
+</script>
+
+</body>
+</html>

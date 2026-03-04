@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfect Store</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+/* ==================== Base ==================== */
+body{
+  margin:0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #0b0f1a, #12182b);
+  color:white;
+}
+
+a{text-decoration:none;color:white;}
+
+/* ==================== Header ==================== */
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 40px;
+  background:#1a2233;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:0 3px 10px rgba(0,0,0,0.5);
+}
+
+header h1{
+  font-size:26px;
+  color:#4da3ff;
+}
+
+nav a{
+  margin:0 12px;
+  font-weight:bold;
+  transition:0.3s;
+}
+
+nav a:hover{
+  color:#2e7bff;
+}
+
+/* ==================== Games Grid ==================== */
+#games{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
+  gap:25px;
+  padding:25px 40px;
+}
+
+/* ==================== Game Card ==================== */
+.card{
+  background:#151c2f;
+  border-radius:12px;
+  overflow:hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+}
+
+.card:hover{
+  transform: translateY(-5px) scale(1.03);
+  box-shadow: 0 15px 25px rgba(0,0,0,0.7);
+}
+
+.card img{
+  width:100%;
+  height:auto;
+  object-fit:contain;
+  background:#000;
+}
+
+.card-body{
+  padding:15px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.card-body h3{
+  margin:5px 0;
+  font-size:18px;
+  color:#ffcc00;
+  height: 40px;
+  overflow:hidden;
+}
+
+.card-body p{
+  margin:5px 0;
+  color:#7aa7ff;
+  font-size:14px;
+  height:35px;
+  overflow:hidden;
+}
+
+.price{
+  font-weight:bold;
+  color:#4da3ff;
+  margin:8px 0;
+  font-size:16px;
+}
+
+.card-body button{
+  padding:10px;
+  background:#2e7bff;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.2s;
+  font-weight:bold;
+}
+
+.card-body button:hover{
+  background:#4da3ff;
+}
+
+/* ==================== Footer ==================== */
+footer{
+  text-align:center;
+  padding:20px;
+  background:#1a2233;
+  color:#7aa7ff;
+  font-size:14px;
+  margin-top:30px;
+}
+
+/* ==================== Responsive ==================== */
+@media(max-width:700px){
+  #games{
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+    padding:20px;
+  }
+}
+
+.filters{
+  text-align:center;
+  margin:20px 0;
+}
+
+.filters button{
+  padding:10px 20px;
+  margin:0 10px;
+  background:#1a2233;
+  border:1px solid #2e7bff;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.filters button:hover{
+  background:#2e7bff;
+}
+
+.category-badge{
+  display:inline-block;
+  padding:5px 12px;
+  border-radius:20px;
+  font-size:13px;
+  font-weight:bold;
+  margin:8px 0;
+}
+
+.category-badge.steam{
+  background:#1b2838;
+  color:#66c0f4;
+}
+
+.category-badge.torrent{
+  background:#0f2027;
+  color:#00ff88;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Perfect Store</h1>
+  <nav>
+    <a href="index.html">العاب</a>
+    <a href="library.html">مكتبتي</a>
+    <a href="auth.html">حسابي</a>
+  </nav>
+</header>
+
+<div class="filters">
+  <button onclick="filterGames('all')">الكل</button>
+  <button onclick="filterGames('steam')">ألعاب ستيم</button>
+  <button onclick="filterGames('torrent')">ألعاب تورنت</button>
+</div>
+
+<div id="games"></div>
+
+<footer>
+  &copy; 2026 Perfect Store - كل الحقوق محفوظة
+</footer>
+
+<script>
+
+const uid = localStorage.getItem("uid");
+const accountLink = document.querySelector("nav a[href='auth.html']"); // رابط حسابي
+if(uid){
+  accountLink.href = "profile.html";
+} else {
+  accountLink.href = "auth.html";
+}
+
+// جلب الألعاب من Firebase
+const gamesContainer = document.getElementById("games");
+let allGames = [];
+
+// جلب الألعاب مرة واحدة
+db.ref("games").once("value").then(snap=>{
+
+  snap.forEach(gSnap=>{
+    allGames.push({
+      id: gSnap.key,
+      ...gSnap.val()
+    });
+  });
+
+  displayGames("all"); // عرض الكل أولاً
+});
+
+// عرض الألعاب حسب التصنيف
+function displayGames(category){
+
+  gamesContainer.innerHTML = "";
+
+  allGames.forEach(game=>{
+
+    if(category !== "all" && game.category !== category) return;
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <img src="${game.coverImage || 'placeholder.png'}" alt="${game.name}">
+      <div class="card-body">
+        <h3>${game.name}</h3>
+        <p>${game.description ? game.description.substring(0,70)+"..." : ''}</p>
+        <div class="category-badge ${game.category}">
+      ${game.category === "steam" ? "Steam" : "Torrent"}
+    </div>
+        <p class="price">${game.price}$</p>
+        <button onclick="buyGame('${game.id}')">شراء اللعبة</button>
+      </div>
+    `;
+
+    gamesContainer.appendChild(card);
+  });
+}
+
+// زر الفلترة
+function filterGames(category){
+  displayGames(category);
+}
+
+function buyGame(gameId){
+  localStorage.setItem("buyGame", gameId);
+  window.location.href = "game.html?id="+gameId; // توجه لصفحة تفاصيل اللعبة
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مكتبتي - Perfect Store</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+body{
+  margin:0;
+  font-family:'Orbitron', sans-serif;
+  background: linear-gradient(120deg,#0b0f1a,#12182b,#0f1826);
+  color:white;
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 50px;
+  background:rgba(26,34,51,0.9);
+  box-shadow:0 3px 10px rgba(0,0,0,0.7);
+}
+
+header h1{
+  color:#4da3ff;
+}
+
+nav a{
+  color:white;
+  margin-left:25px;
+  text-decoration:none;
+  font-weight:bold;
+}
+
+nav a:hover{color:#2e7bff;}
+
+.page-title{
+  text-align:center;
+  margin:40px 0 20px;
+  font-size:36px;
+  color:#4da3ff;
+  text-shadow:0 0 8px #2e7bff;
+}
+
+#library-container{
+  overflow-x:auto;
+  white-space:nowrap;
+  padding:20px 50px;
+}
+
+.card{
+  display:inline-block;
+  width:250px;
+  background:#151c2f;
+  border-radius:15px;
+  margin-right:20px;
+  transition:.3s;
+}
+
+.card:hover{
+  transform:translateY(-10px) scale(1.05);
+  box-shadow:0 15px 25px rgba(0,0,0,0.8);
+}
+
+.card img{
+  width:100%;
+  height:160px;
+  object-fit:cover;
+  border-radius:15px 15px 0 0;
+  border-bottom:3px solid #2e7bff;
+}
+
+.card-body{
+  padding:15px;
+  text-align:center;
+}
+
+.card-body h3{
+  color:#ffcc00;
+  height:50px;
+}
+
+.price{
+  color:#4da3ff;
+  font-weight:bold;
+}
+
+.download-btn{
+  display:block;
+  margin-top:12px;
+  padding:10px;
+  background:#2e7bff;
+  color:white;
+  text-decoration:none;
+  border-radius:8px;
+  font-weight:bold;
+  transition:.2s;
+}
+
+.download-btn:hover{
+  background:#4da3ff;
+  box-shadow:0 5px 15px rgba(0,123,255,0.6);
+}
+
+footer{
+  text-align:center;
+  padding:25px;
+  color:#7aa7ff;
+  margin-top:50px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Perfect Store</h1>
+  <nav>
+    <a href="index.html">الرئيسية</a>
+    <a href="library.html">مكتبتي</a>
+    <a href="profile.html">حسابي</a>
+  </nav>
+</header>
+
+<h1 class="page-title">Games</h1>
+
+<div id="library-container"></div>
+
+<footer>
+  &copy; 2026 Perfect Store
+</footer>
+
+<script>
+const uid = localStorage.getItem("uid");
+const library = document.getElementById("library-container");
+
+if(!uid){
+  alert("يجب تسجيل الدخول أولاً");
+  location="auth.html";
+}
+
+db.ref("usersperfect/"+uid+"/gamesOwned").once("value")
+.then(snapshot => {
+
+  library.innerHTML="";
+
+  if(!snapshot.exists()){
+    library.innerHTML="<p style='color:#7aa7ff'>لم تشترِ أي لعبة بعد.</p>";
+    return;
+  }
+
+  snapshot.forEach(gSnap=>{
+
+    const gameId = gSnap.key;
+    const purchasedAt = gSnap.val().purchasedAt;
+
+    db.ref("games/"+gameId).once("value").then(s=>{
+
+      const game = s.val();
+      if(!game) return;
+
+      const card=document.createElement("div");
+      card.className="card";
+
+      const formattedDate =
+        new Date(purchasedAt).toLocaleDateString();
+
+      card.innerHTML=`
+        <img src="${game.coverImage || game.image}">
+        <div class="card-body">
+          <h3>${game.name}</h3>
+          <p class="price">${game.price}$</p>
+          <p>Size: ${game.size || "غير متوفر"}</p>
+          <p>${formattedDate}</p>
+          <a href="#" class="download-btn">تحميل اللعبة</a>
+        </div>
+      `;
+
+      // زر التحميل فقط
+      card.querySelector(".download-btn").onclick=e=>{
+        e.preventDefault();
+
+        if(!game.fileName){
+          alert("ملف اللعبة غير موجود");
+          return;
+        }
+
+        window.location.href=`Games/${game.fileName}`;
+      };
+
+      library.appendChild(card);
+    });
+  });
+})
+.catch(err=>{
+  console.error(err);
+  alert("حدث خطأ أثناء تحميل مكتبتك");
+});
+</script>
+
+</body>
+</html>
