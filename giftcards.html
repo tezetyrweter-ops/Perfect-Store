@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfect Store - Gift Cards</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right,#0b0f1a,#12182b);
+  color:white;
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 40px;
+  background:#1a2233;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:0 3px 10px rgba(0,0,0,0.5);
+}
+
+header h1{ font-size:26px; color:#4da3ff; }
+
+nav a{
+  margin:0 12px;
+  font-weight:bold;
+  transition:0.3s;
+}
+
+nav a:hover{ color:#2e7bff; }
+
+#cards{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
+  gap:25px;
+  padding:25px 40px;
+}
+
+.card{
+  background:#151c2f;
+  border-radius:12px;
+  overflow:hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+}
+
+.card:hover{
+  transform: translateY(-5px) scale(1.03);
+  box-shadow: 0 15px 25px rgba(0,0,0,0.7);
+}
+
+.card img{
+  width:100%;
+  height:auto;
+  object-fit:contain;
+  background:#000;
+}
+
+.card-body{
+  padding:15px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.card-body h3{
+  margin:5px 0;
+  font-size:18px;
+  color:#ffcc00;
+  height:40px;
+  overflow:hidden;
+}
+
+.card-body p{
+  margin:5px 0;
+  color:#7aa7ff;
+  font-size:14px;
+  height:35px;
+  overflow:hidden;
+}
+
+.price{
+  font-weight:bold;
+  color:#4da3ff;
+  margin:8px 0;
+  font-size:16px;
+}
+
+.card-body button{
+  padding:10px;
+  background:#2e7bff;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.2s;
+  font-weight:bold;
+}
+
+.card-body button:hover{
+  background:#4da3ff;
+}
+
+.filters{
+  text-align:center;
+  margin:20px 0;
+}
+
+.filters button{
+  padding:10px 20px;
+  margin:0 10px;
+  background:#1a2233;
+  border:1px solid #2e7bff;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.filters button:hover{
+  background:#2e7bff;
+}
+
+.category-badge{
+  display:inline-block;
+  padding:5px 12px;
+  border-radius:20px;
+  font-size:13px;
+  font-weight:bold;
+  margin:8px 0;
+}
+
+.category-badge.steam{ background:#1b2838; color:#66c0f4; }
+.category-badge.googleplay{ background:#34a853; color:white; }
+.category-badge.binance{ background:#f3ba2f; color:black; }
+
+footer{
+  text-align:center;
+  padding:20px;
+  background:#1a2233;
+  color:#7aa7ff;
+  font-size:14px;
+  margin-top:30px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Perfect Store</h1>
+  <nav>
+    <a href="index.html">العاب</a>
+    <a href="giftcards.html">Gift Cards</a>
+    <a href="library.html">مكتبتي</a>
+    <a href="auth.html">حسابي</a>
+  </nav>
+</header>
+
+<div class="filters">
+  <button onclick="filterCards('all')">الكل</button>
+  <button onclick="filterCards('steam')">Steam</button>
+  <button onclick="filterCards('googleplay')">Google Play</button>
+  <button onclick="filterCards('binance')">Binance</button>
+</div>
+
+<div id="cards"></div>
+
+<footer>
+  &copy; 2026 Perfect Store - كل الحقوق محفوظة
+</footer>
+
+<script>
+const container = document.getElementById("cards");
+let allCards = [];
+
+// جلب البطاقات بشكل مباشر مع تحديث تلقائي عند أي تغيير
+db.ref("giftcards").on("value", snap=>{
+  allCards = [];
+  snap.forEach(cardSnap=>{
+    const card = cardSnap.val();
+    allCards.push({
+      id: cardSnap.key,
+      ...card
+    });
+  });
+  displayCards("all");
+});
+
+// عرض البطاقات حسب النوع
+function displayCards(type){
+  container.innerHTML = "";
+  allCards.forEach(card=>{
+    if(type!=="all" && card.type!==type) return;
+
+    const div = document.createElement("div");
+    div.className="card";
+
+    div.innerHTML = `
+      <img src="${card.image}" alt="${card.name}">
+      <div class="card-body">
+        <h3>${card.name}</h3>
+        <div class="category-badge ${card.type}">
+          ${card.type.toUpperCase()}
+        </div>
+        <p class="price">${card.price}$</p>
+        <button onclick="buyCard('${card.id}')">شراء</button>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function filterCards(type){
+  displayCards(type);
+}
+
+function buyCard(id){
+  localStorage.setItem("buyCard",id);
+  window.location.href="checkout-card.html";
+}
+</script>
+
+</body>
+</html>

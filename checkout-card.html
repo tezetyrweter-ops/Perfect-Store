@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfect Store - دفع البطاقة</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase.js"></script>
+<style>
+body{background:#0b0f1a;color:#fff;font-family:'Segoe UI',Tahoma,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+.container{background:#12182b;border-radius:15px;box-shadow:0 0 30px rgba(0,0,0,0.7);width:400px;max-width:95%;overflow:hidden;}
+.card-info{display:flex;padding:20px;gap:15px;border-bottom:1px solid #2e3b5c;align-items:center;}
+.card-info img{width:100px;height:100px;border-radius:10px;object-fit:cover;}
+.card-details{flex:1;}
+.card-details h2{margin:0;font-size:20px;color:#ffcc00;}
+.card-details p{margin:5px 0;color:#ccc;font-size:16px;}
+.price{font-weight:bold;font-size:18px;color:#4da3ff;margin-top:5px;}
+.payment-section{padding:20px;display:flex;flex-direction:column;gap:12px;}
+input{padding:12px;border-radius:8px;border:none;background:#1b2340;color:white;font-size:16px;}
+input::placeholder{color:#7a8ca2;}
+button{padding:12px;background:#2e7bff;border:none;border-radius:8px;color:white;font-size:16px;cursor:pointer;margin-top:10px;transition:0.2s;}
+button:hover{background:#4da3ff;}
+#successBox{display:none;margin:20px;padding:15px;background:#1c3e1c;border-radius:8px;color:#b6ffb6;font-weight:bold;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card-info">
+    <img id="cardImg" src="" alt="صورة البطاقة">
+    <div class="card-details">
+      <h2 id="cardName">...</h2>
+      <p>السعر:</p>
+      <p class="price" id="cardPrice">0$</p>
+    </div>
+  </div>
+
+  <div class="payment-section">
+    <input id="cardNumber" placeholder="رقم البطاقة">
+    <input id="cvv" placeholder="CVV">
+    <input id="pin" placeholder="PIN">
+    <button onclick="payCard()">تأكيد الدفع</button>
+  </div>
+
+  <div id="successBox"></div>
+</div>
+
+<script>
+const cardId = localStorage.getItem("buyCard");
+const cardNameEl = document.getElementById("cardName");
+const cardPriceEl = document.getElementById("cardPrice");
+const cardImgEl = document.getElementById("cardImg");
+const successBox = document.getElementById("successBox");
+
+async function loadCard(){
+  if(!cardId) return;
+  const snap = await db.ref("giftcards/"+cardId).once("value");
+  const card = snap.val();
+  if(!card) return;
+
+  cardNameEl.innerText = card.name;
+  cardPriceEl.innerText = card.price+"$";
+  cardImgEl.src = card.coverImage || card.image || "https://via.placeholder.com/100";
+}
+loadCard();
+
+async function payCard() {
+  const uid = localStorage.getItem("uid");
+  if(!uid){ alert("يجب تسجيل الدخول أولاً"); location="auth.html"; return; }
+
+  const cardNum = document.getElementById("cardNumber").value.replace(/\s|-/g,"").trim();
+  const cvv = document.getElementById("cvv").value.trim();
+  const pin = document.getElementById("pin").value.trim();
+  if(!cardNum || !cvv || !pin){ alert("املأ جميع الحقول"); return; }
+
+  // تحقق البطاقة
+  const usersSnap = await db.ref("users").once("value");
+  let bankUser = null;
+  usersSnap.forEach(uSnap=>{
+    const user = uSnap.val();
+    if((user.cardNumber||"").replace(/\s|-/g,"")===cardNum &&
+       String(user.cvv)===cvv && String(user.pin)===pin){
+      bankUser = { key: uSnap.key, data: user };
+    }
+  });
+
+  if(!bankUser){ alert("معلومات البطاقة غير صحيحة"); return; }
+
+  // جلب بيانات البطاقة
+  const cardSnap = await db.ref("giftcards/"+cardId).once("value");
+  const gift = cardSnap.val();
+  if(!gift){ alert("الكود غير موجود"); return; }
+
+  const price = Number(gift.price);
+
+  // التحقق من وجود كود متاح قبل خصم الرصيد
+  const codesSnap = await db.ref("giftcodes/"+cardId).once("value");
+  const codesObj = codesSnap.val();
+  if(!codesObj || Object.keys(codesObj).length === 0){
+    alert("نفذت الكودات");
+    return;
+  }
+
+  if(bankUser.data.balance < price){ 
+    alert("الرصيد غير كافي"); 
+    return; 
+  }
+
+  // خصم الرصيد بعد التأكد من وجود كود
+  await db.ref("users/"+bankUser.key).update({ balance: bankUser.data.balance - price });
+
+  const [firstKey, firstCode] = Object.entries(codesObj)[0];
+
+  // إزالة الكود بعد الشراء
+  await db.ref("giftcodes/"+cardId+"/"+firstKey).remove();
+
+  // إضافة الكود للمستخدم
+  await db.ref("usersperfect/"+uid+"/giftCardsOwned/"+cardId).set({
+    purchasedAt: Date.now(),
+    code: firstCode,
+    name: gift.name
+  });
+
+  successBox.style.display="block";
+  document.querySelector(".payment-section").style.display="none";
+  successBox.innerHTML = `تم شراء البطاقة بنجاح! 🎉<br>كودك: <b>${firstCode}</b>`;
+}
+</script>
+
+</body>
+</html>
